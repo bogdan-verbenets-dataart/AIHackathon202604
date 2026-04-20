@@ -1,6 +1,7 @@
 # Stage 1: Build the Angular app
 FROM node:22-alpine AS build
 WORKDIR /app
+RUN corepack disable
 COPY package*.json ./
 RUN npm ci
 COPY . .
