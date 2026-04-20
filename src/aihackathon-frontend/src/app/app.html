@@ -1,0 +1,29 @@
+<div class="container">
+  <h1>{{ title }}</h1>
+  <h2>Weather Forecast</h2>
+
+  <button (click)="loadForecasts()" [disabled]="loading">
+    {{ loading ? 'Loading...' : 'Refresh' }}
+  </button>
+
+  <div *ngIf="error" class="error">{{ error }}</div>
+
+  <table *ngIf="forecasts.length > 0">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Temp (°C)</th>
+        <th>Temp (°F)</th>
+        <th>Summary</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let f of forecasts">
+        <td>{{ f.date }}</td>
+        <td>{{ f.temperatureC }}</td>
+        <td>{{ f.temperatureF }}</td>
+        <td>{{ f.summary }}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>

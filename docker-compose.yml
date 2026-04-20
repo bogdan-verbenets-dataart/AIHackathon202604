@@ -1,0 +1,21 @@
+services:
+  api:
+    build:
+      context: ./src/AIHackathon.Api
+      dockerfile: Dockerfile
+    container_name: aihackathon-api
+    ports:
+      - "5000:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+
+  frontend:
+    build:
+      context: ./src/aihackathon-frontend
+      dockerfile: Dockerfile
+    container_name: aihackathon-frontend
+    ports:
+      - "4200:80"
+    depends_on:
+      - api
