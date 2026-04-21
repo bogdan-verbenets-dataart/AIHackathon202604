@@ -14,6 +14,18 @@ import {
   PresenceStatus,
 } from './presence';
 
+function parseCookieHeader(cookieHeader: string): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const pair of cookieHeader.split(';')) {
+    const eqIdx = pair.indexOf('=');
+    if (eqIdx === -1) continue;
+    const key = pair.slice(0, eqIdx).trim();
+    const val = pair.slice(eqIdx + 1).trim();
+    if (key) result[key] = decodeURIComponent(val);
+  }
+  return result;
+}
+
 export function setupSocket(server: HttpServer, prisma: PrismaClient, redisClient: Redis): SocketServer {
   const io = new SocketServer(server, {
     cors: {
@@ -25,8 +37,45 @@ export function setupSocket(server: HttpServer, prisma: PrismaClient, redisClien
   // Separate Redis connection for pub/sub
   const redisSub = redisClient.duplicate();
 
-  // Track socket -> {userId, tabId} mapping
-  const socketUserMap = new Map<string, { userId: string; tabId: string }>();
+  // Track socket -> tabId mapping (userId comes from socket.data.userId set by middleware)
+  const socketTabMap = new Map<string, string>();
+
+  // Socket middleware: authenticate via the httpOnly 'token' cookie
+  io.use(async (socket, next) => {
+    try {
+      const cookieHeader = socket.handshake.headers.cookie ?? '';
+      const cookies = parseCookieHeader(cookieHeader);
+      const token = cookies['token'];
+      if (!token) {
+        next(new Error('Unauthorized'));
+        return;
+      }
+
+      let jwtPayload: { sessionId: string };
+      try {
+        jwtPayload = jwt.verify(token, config.jwtSecret) as { sessionId: string };
+      } catch {
+        next(new Error('Unauthorized'));
+        return;
+      }
+
+      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+      const session = await prisma.userSession.findUnique({
+        where: { id: jwtPayload.sessionId },
+        include: { user: true },
+      });
+
+      if (!session || session.tokenHash !== tokenHash || session.expiresAt < new Date()) {
+        next(new Error('Unauthorized'));
+        return;
+      }
+
+      socket.data.userId = session.user.id;
+      next();
+    } catch {
+      next(new Error('Internal error'));
+    }
+  });
 
   redisSub.subscribe('presence:updates', (err) => {
     if (err) console.error('Redis subscribe error:', err);
@@ -42,64 +91,22 @@ export function setupSocket(server: HttpServer, prisma: PrismaClient, redisClien
   });
 
   io.on('connection', (socket) => {
-    socket.on('auth', async (payload: { token: string; tabId: string }) => {
-      try {
-        const { token, tabId } = payload;
-        if (!token || !tabId) {
-          socket.emit('auth:error', { error: 'token and tabId required' });
-          return;
-        }
+    const userId = socket.data.userId as string;
 
-        let jwtPayload: { sessionId: string };
-        try {
-          jwtPayload = jwt.verify(token, config.jwtSecret) as { sessionId: string };
-        } catch {
-          socket.emit('auth:error', { error: 'Invalid token' });
-          return;
-        }
-
-        const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-        const session = await prisma.userSession.findUnique({
-          where: { id: jwtPayload.sessionId },
-          include: { user: true },
-        });
-
-        if (!session || session.tokenHash !== tokenHash || session.expiresAt < new Date()) {
-          socket.emit('auth:error', { error: 'Invalid session' });
-          return;
-        }
-
-        const userId = session.user.id;
-        socketUserMap.set(socket.id, { userId, tabId });
-
-        const prevStatus = await getUserStatus(userId, redisClient);
-        await setTabActive(userId, tabId, redisClient);
-        const newStatus = await getUserStatus(userId, redisClient);
-
-        if (prevStatus !== newStatus) {
-          await publishPresenceChange(userId, newStatus, redisClient);
-        }
-
-        socket.emit('auth:success', { userId });
-      } catch (err) {
-        console.error('Socket auth error:', err);
-        socket.emit('auth:error', { error: 'Internal error' });
-      }
+    socket.on('join_chat', (payload: string | { chatId: string }) => {
+      const chatId = typeof payload === 'string' ? payload : payload?.chatId;
+      if (chatId) socket.join(`chat:${chatId}`);
     });
 
-    socket.on('join_chat', (chatId: string) => {
-      socket.join(`chat:${chatId}`);
-    });
-
-    socket.on('leave_chat', (chatId: string) => {
-      socket.leave(`chat:${chatId}`);
+    socket.on('leave_chat', (payload: string | { chatId: string }) => {
+      const chatId = typeof payload === 'string' ? payload : payload?.chatId;
+      if (chatId) socket.leave(`chat:${chatId}`);
     });
 
     socket.on('heartbeat', async (data: { tabId: string }) => {
-      const info = socketUserMap.get(socket.id);
-      if (!info) return;
-      const { userId } = info;
-      const tabId = data?.tabId ?? info.tabId;
+      const tabId = data?.tabId;
+      if (!tabId) return;
+      socketTabMap.set(socket.id, tabId);
 
       const prevStatus = await getUserStatus(userId, redisClient);
       await setTabActive(userId, tabId, redisClient);
@@ -111,10 +118,8 @@ export function setupSocket(server: HttpServer, prisma: PrismaClient, redisClien
     });
 
     socket.on('afk', async (data: { tabId: string }) => {
-      const info = socketUserMap.get(socket.id);
-      if (!info) return;
-      const { userId } = info;
-      const tabId = data?.tabId ?? info.tabId;
+      const tabId = data?.tabId ?? socketTabMap.get(socket.id);
+      if (!tabId) return;
 
       const prevStatus = await getUserStatus(userId, redisClient);
       await setTabAfk(userId, tabId, redisClient);
@@ -126,10 +131,8 @@ export function setupSocket(server: HttpServer, prisma: PrismaClient, redisClien
     });
 
     socket.on('active', async (data: { tabId: string }) => {
-      const info = socketUserMap.get(socket.id);
-      if (!info) return;
-      const { userId } = info;
-      const tabId = data?.tabId ?? info.tabId;
+      const tabId = data?.tabId ?? socketTabMap.get(socket.id);
+      if (!tabId) return;
 
       const prevStatus = await getUserStatus(userId, redisClient);
       await setTabActive(userId, tabId, redisClient);
@@ -141,10 +144,9 @@ export function setupSocket(server: HttpServer, prisma: PrismaClient, redisClien
     });
 
     socket.on('disconnect', async () => {
-      const info = socketUserMap.get(socket.id);
-      if (!info) return;
-      const { userId, tabId } = info;
-      socketUserMap.delete(socket.id);
+      const tabId = socketTabMap.get(socket.id);
+      socketTabMap.delete(socket.id);
+      if (!tabId) return;
 
       const prevStatus = await getUserStatus(userId, redisClient);
       await removeTab(userId, tabId, redisClient);
