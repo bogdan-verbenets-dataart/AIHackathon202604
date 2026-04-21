@@ -24,8 +24,8 @@ export async function listFriends(userId: string, redisClient: Redis, prisma: Pr
   return Promise.all(
     friendships.map(async (f) => {
       const friend = f.userAId === userId ? f.userB : f.userA;
-      const status = await getUserStatus(friend.id, redisClient);
-      return { ...friend, status, since: f.createdAt };
+      const presence = await getUserStatus(friend.id, redisClient);
+      return { ...friend, presence, since: f.createdAt };
     })
   );
 }
