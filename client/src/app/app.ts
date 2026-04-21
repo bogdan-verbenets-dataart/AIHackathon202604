@@ -12,7 +12,7 @@ export class App implements OnInit {
 
   ngOnInit(): void {
     this.http
-      .get<{ message: string }>('http://localhost:3000/api/message')
+      .get<{ message: string }>('/api/message')
       .subscribe({
         next: (response) => {
           this.message = response.message;
