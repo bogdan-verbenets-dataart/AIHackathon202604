@@ -13,6 +13,9 @@ export async function setTabActive(userId: string, tabId: string, redisClient: R
 export async function setTabAfk(userId: string, tabId: string, redisClient: Redis): Promise<void> {
   const key = tabKey(userId, tabId);
   const ttl = await redisClient.ttl(key);
+  // ttl > 0: key exists with expiry — preserve it
+  // ttl === -1: key exists without expiry (shouldn't happen, but treat as PRESENCE_TTL)
+  // ttl === -2: key doesn't exist — create with PRESENCE_TTL
   await redisClient.set(key, 'afk', 'EX', ttl > 0 ? ttl : PRESENCE_TTL);
 }
 

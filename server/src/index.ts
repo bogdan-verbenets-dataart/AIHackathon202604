@@ -9,6 +9,8 @@ import prisma from './db';
 import redis from './redis';
 import { setupSocket } from './socket';
 import { setIo } from './modules/messages/router';
+import { csrfProtection } from './middleware/csrf';
+import { apiLimiter, authLimiter } from './middleware/rateLimit';
 
 import authRouter from './modules/auth/router';
 import usersRouter from './modules/users/router';
@@ -29,6 +31,13 @@ app.use(compression());
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// CSRF protection for all routes using cookie-based auth
+app.use(csrfProtection);
+
+// Rate limiting
+app.use('/api/auth', authLimiter);
+app.use('/api', apiLimiter);
 
 app.use('/api/auth', authRouter);
 app.use('/api/users', usersRouter);
