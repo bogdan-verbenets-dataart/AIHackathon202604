@@ -1,0 +1,265 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  username      String   @unique
+  passwordHash  String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+
+  sessions      UserSession[]
+  friendsSent   FriendRequest[] @relation("requester")
+  friendsRecv   FriendRequest[] @relation("recipient")
+  friendshipsA  Friendship[]    @relation("userA")
+  friendshipsB  Friendship[]    @relation("userB")
+  blocksGiven   UserBlock[]     @relation("blocker")
+  blocksRecv    UserBlock[]     @relation("blocked")
+  ownedRooms    Room[]          @relation("owner")
+  memberships   RoomMember[]
+  adminOf       RoomAdmin[]
+  bansGiven     RoomBan[]       @relation("bannedBy")
+  bansReceived  RoomBan[]       @relation("bannedUser")
+  invitesSent   RoomInvite[]    @relation("inviter")
+  invitesRecv   RoomInvite[]    @relation("invitee")
+  messages      Message[]
+  unreadStates  UnreadState[]
+  auditLogs     AuditLog[]
+}
+
+model UserSession {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash   String   @unique
+  userAgent   String?
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime
+  lastUsedAt  DateTime @default(now())
+
+  @@index([userId])
+}
+
+model FriendRequest {
+  id          String   @id @default(uuid())
+  requesterId String
+  recipientId String
+  message     String?
+  status      String   @default("pending")
+  createdAt   DateTime @default(now())
+
+  requester   User     @relation("requester", fields: [requesterId], references: [id], onDelete: Cascade)
+  recipient   User     @relation("recipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@unique([requesterId, recipientId])
+  @@index([recipientId])
+}
+
+model Friendship {
+  id        String   @id @default(uuid())
+  userAId   String
+  userBId   String
+  createdAt DateTime @default(now())
+
+  userA     User     @relation("userA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB     User     @relation("userB", fields: [userBId], references: [id], onDelete: Cascade)
+
+  @@unique([userAId, userBId])
+}
+
+model UserBlock {
+  id        String   @id @default(uuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+
+  blocker   User     @relation("blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked   User     @relation("blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+}
+
+model Room {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String   @default("")
+  isPublic    Boolean  @default(true)
+  ownerId     String
+  createdAt   DateTime @default(now())
+  deletedAt   DateTime?
+
+  owner       User         @relation("owner", fields: [ownerId], references: [id])
+  members     RoomMember[]
+  admins      RoomAdmin[]
+  bans        RoomBan[]
+  invites     RoomInvite[]
+  chat        Chat?
+}
+
+model RoomMember {
+  id       String   @id @default(uuid())
+  roomId   String
+  userId   String
+  joinedAt DateTime @default(now())
+
+  room     Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+  @@index([userId])
+}
+
+model RoomAdmin {
+  id     String @id @default(uuid())
+  roomId String
+  userId String
+
+  room   Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+}
+
+model RoomBan {
+  id         String   @id @default(uuid())
+  roomId     String
+  userId     String
+  bannedById String
+  createdAt  DateTime @default(now())
+
+  room       Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user       User     @relation("bannedUser", fields: [userId], references: [id], onDelete: Cascade)
+  bannedBy   User     @relation("bannedBy", fields: [bannedById], references: [id])
+
+  @@unique([roomId, userId])
+}
+
+model RoomInvite {
+  id        String   @id @default(uuid())
+  roomId    String
+  inviterId String
+  inviteeId String
+  createdAt DateTime @default(now())
+
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  inviter   User     @relation("inviter", fields: [inviterId], references: [id], onDelete: Cascade)
+  invitee   User     @relation("invitee", fields: [inviteeId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, inviteeId])
+}
+
+model Chat {
+  id         String   @id @default(uuid())
+  type       String
+  roomId     String?  @unique
+  createdAt  DateTime @default(now())
+
+  room       Room?    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  messages   Message[]
+  unread     UnreadState[]
+
+  participants PersonalChatParticipant[]
+}
+
+model PersonalChatParticipant {
+  id     String @id @default(uuid())
+  chatId String
+  userId String
+
+  chat   Chat   @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@unique([chatId, userId])
+  @@index([userId])
+}
+
+model Message {
+  id          String    @id @default(uuid())
+  chatId      String
+  authorId    String
+  content     String    @db.Text
+  replyToId   String?
+  editedAt    DateTime?
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  chat        Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  author      User      @relation(fields: [authorId], references: [id])
+  replyTo     Message?  @relation("replies", fields: [replyToId], references: [id])
+  replies     Message[] @relation("replies")
+  attachments MessageAttachment[]
+
+  @@index([chatId, createdAt])
+}
+
+model Attachment {
+  id           String   @id @default(uuid())
+  originalName String
+  storagePath  String
+  mimeType     String
+  size         Int
+  comment      String?
+  uploaderId   String
+  createdAt    DateTime @default(now())
+
+  messages     MessageAttachment[]
+}
+
+model MessageAttachment {
+  id           String     @id @default(uuid())
+  messageId    String
+  attachmentId String
+
+  message      Message    @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  attachment   Attachment @relation(fields: [attachmentId], references: [id])
+
+  @@unique([messageId, attachmentId])
+}
+
+model UnreadState {
+  id          String   @id @default(uuid())
+  userId      String
+  chatId      String
+  count       Int      @default(0)
+  lastReadAt  DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chat        Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, chatId])
+  @@index([userId])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String
+  action     String
+  targetType String?
+  targetId   String?
+  meta       Json?
+  createdAt  DateTime @default(now())
+
+  actor      User     @relation(fields: [actorId], references: [id])
+
+  @@index([actorId])
+  @@index([targetType, targetId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
