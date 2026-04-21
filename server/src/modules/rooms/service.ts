@@ -132,8 +132,8 @@ export async function getRoomMembers(roomId: string, redisClient: Redis, prisma:
   return Promise.all(
     members.map(async (m) => {
       const role = m.userId === room.ownerId ? 'owner' : adminSet.has(m.userId) ? 'admin' : 'member';
-      const status = await getUserStatus(m.userId, redisClient);
-      return { ...m.user, role, status, joinedAt: m.joinedAt };
+      const presence = await getUserStatus(m.userId, redisClient);
+      return { ...m.user, role, presence, joinedAt: m.joinedAt };
     })
   );
 }
