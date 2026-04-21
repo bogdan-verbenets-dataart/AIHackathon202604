@@ -5,6 +5,21 @@ const api = axios.create({
   withCredentials: true,
 });
 
+function getCookie(name: string): string | undefined {
+  return document.cookie
+    .split('; ')
+    .find((row) => row.startsWith(name + '='))
+    ?.split('=')[1];
+}
+
+api.interceptors.request.use((config) => {
+  const token = getCookie('csrf_token');
+  if (token) {
+    config.headers['x-csrf-token'] = token;
+  }
+  return config;
+});
+
 api.interceptors.response.use(
   (res) => res,
   (err) => {

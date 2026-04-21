@@ -21,7 +21,7 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction):
     res.cookie(CSRF_COOKIE, token, {
       httpOnly: false, // must be readable by JS
       sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
+      secure: false,
     });
   }
 
