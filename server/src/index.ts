@@ -20,8 +20,9 @@ import { chatsRouter, messagesRouter } from './modules/messages/router';
 
 const app = express();
 
+const allowedOrigin = process.env.CORS_ORIGIN || 'http://localhost:3000';
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || true,
+  origin: allowedOrigin,
   credentials: true,
 }));
 app.use(compression());

@@ -17,7 +17,7 @@ import {
 export function setupSocket(server: HttpServer, prisma: PrismaClient, redisClient: Redis): SocketServer {
   const io = new SocketServer(server, {
     cors: {
-      origin: process.env.CORS_ORIGIN || '*',
+      origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
       credentials: true,
     },
   });
