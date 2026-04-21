@@ -1,0 +1,60 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: chat
+      POSTGRES_PASSWORD: chatpass
+      POSTGRES_DB: chatdb
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chat -d chatdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql://chat:chatpass@postgres:5432/chatdb
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: change-me-in-production-use-long-random-string
+      PORT: "4000"
+      UPLOADS_DIR: /uploads
+      NODE_ENV: production
+      ALLOWED_ORIGIN: http://localhost
+    volumes:
+      - uploads:/uploads
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
+  redisdata:
+  uploads:
