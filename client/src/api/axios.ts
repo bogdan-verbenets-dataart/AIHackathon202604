@@ -20,10 +20,12 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+const PUBLIC_PATHS = ['/login', '/register', '/forgot-password'];
+
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401) {
+    if (err.response?.status === 401 && !PUBLIC_PATHS.includes(window.location.pathname)) {
       window.location.href = '/login';
     }
     return Promise.reject(err);
