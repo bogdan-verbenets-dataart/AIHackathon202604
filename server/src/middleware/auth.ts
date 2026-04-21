@@ -6,7 +6,7 @@ import prisma from '../db';
 declare global {
   namespace Express {
     interface Request {
-      user?: { id: string; email: string; username: string };
+      user?: { id: string; email: string; username: string; createdAt: Date };
       session?: { id: string };
     }
   }
@@ -57,6 +57,7 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
       id: session.user.id,
       email: session.user.email,
       username: session.user.username,
+      createdAt: session.user.createdAt,
     };
     req.session = { id: session.id };
 
