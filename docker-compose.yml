@@ -1,0 +1,16 @@
+services:
+  server:
+    build:
+      context: ./server
+    container_name: aihackathon-server
+    ports:
+      - "3000:3000"
+
+  client:
+    build:
+      context: ./client
+    container_name: aihackathon-client
+    depends_on:
+      - server
+    ports:
+      - "4200:80"
