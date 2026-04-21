@@ -36,7 +36,7 @@ namespace AIHackathon202604.Controllers
             {
                 get
                 {
-                    return 32 + (int)(TemperatureC / 0.5556);
+                    return 32 + (int)(TemperatureC * 9 / 5);
                 }
             }
         }
