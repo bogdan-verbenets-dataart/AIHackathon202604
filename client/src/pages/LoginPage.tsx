@@ -20,8 +20,8 @@ export default function LoginPage() {
       setUser(result.user);
       navigate('/');
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { message?: string } } };
-      setError(e.response?.data?.message ?? 'Login failed. Please try again.');
+      const e = err as { response?: { data?: { error?: string } } };
+      setError(e.response?.data?.error ?? 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }

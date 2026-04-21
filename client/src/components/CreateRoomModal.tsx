@@ -21,8 +21,8 @@ export default function CreateRoomModal({ onClose, onCreated }: Props) {
       await createRoom({ name, description, isPublic });
       onCreated();
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { message?: string } } };
-      setError(e.response?.data?.message ?? 'Failed to create room.');
+      const e = err as { response?: { data?: { error?: string } } };
+      setError(e.response?.data?.error ?? 'Failed to create room.');
     } finally {
       setLoading(false);
     }

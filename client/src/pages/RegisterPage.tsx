@@ -18,8 +18,8 @@ export default function RegisterPage() {
       await register({ email, username, password });
       navigate('/login');
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { message?: string } } };
-      setError(e.response?.data?.message ?? 'Registration failed. Please try again.');
+      const e = err as { response?: { data?: { error?: string } } };
+      setError(e.response?.data?.error ?? 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }

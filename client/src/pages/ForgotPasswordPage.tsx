@@ -20,8 +20,8 @@ export default function ForgotPasswordPage() {
       setToken(result.token);
       setStep('reset');
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { message?: string } } };
-      setError(e.response?.data?.message ?? 'Request failed.');
+      const e = err as { response?: { data?: { error?: string } } };
+      setError(e.response?.data?.error ?? 'Request failed.');
     } finally {
       setLoading(false);
     }
@@ -35,8 +35,8 @@ export default function ForgotPasswordPage() {
       await resetPassword(token, newPassword);
       setSuccess('Password reset successfully! You can now sign in.');
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { message?: string } } };
-      setError(e.response?.data?.message ?? 'Reset failed.');
+      const e = err as { response?: { data?: { error?: string } } };
+      setError(e.response?.data?.error ?? 'Reset failed.');
     } finally {
       setLoading(false);
     }

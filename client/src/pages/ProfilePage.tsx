@@ -30,8 +30,8 @@ export default function ProfilePage() {
       setNewPassword('');
       setConfirmPassword('');
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { message?: string } } };
-      setError(e.response?.data?.message ?? 'Failed to change password.');
+      const e = err as { response?: { data?: { error?: string } } };
+      setError(e.response?.data?.error ?? 'Failed to change password.');
     } finally {
       setLoading(false);
     }

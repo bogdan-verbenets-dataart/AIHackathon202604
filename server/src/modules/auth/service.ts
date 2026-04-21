@@ -7,7 +7,7 @@ import { config } from '../../config';
 
 export const registerSchema = z.object({
   email: z.string().email(),
-  username: z.string().regex(/^[a-zA-Z0-9_]{3,30}$/),
+  username: z.string().regex(/^[a-zA-Z0-9_]{3,30}$/, 'Username must be 3-30 characters and contain only letters, numbers, and underscores'),
   password: z.string().min(8),
 });
 
