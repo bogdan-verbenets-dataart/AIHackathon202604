@@ -35,9 +35,17 @@ app.use(express.urlencoded({ extended: true }));
 // CSRF protection for all routes using cookie-based auth
 app.use(csrfProtection);
 
-// Rate limiting
+// Rate limiting — auth routes use the strict authLimiter only; all other API
+// routes use the general apiLimiter.  Keep them separate so auth requests are
+// not double-counted against both limiters.
 app.use('/api/auth', authLimiter);
-app.use('/api', apiLimiter);
+app.use('/api/users', apiLimiter);
+app.use('/api/sessions', apiLimiter);
+app.use('/api/rooms', apiLimiter);
+app.use('/api/contacts', apiLimiter);
+app.use('/api/chats', apiLimiter);
+app.use('/api/messages', apiLimiter);
+app.use('/api/attachments', apiLimiter);
 
 app.use('/api/auth', authRouter);
 app.use('/api/users', usersRouter);
