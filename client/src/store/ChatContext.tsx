@@ -105,7 +105,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     socket.on('message:new', ({ chatId, message }: { chatId: string; message: Message }) => {
       setMessages(prev => ({
         ...prev,
-        [chatId]: [...(prev[chatId] ?? []), message],
+        [chatId]: (() => {
+          const chatMessages = prev[chatId] ?? [];
+          return chatMessages.some(m => m.id === message.id)
+            ? chatMessages
+            : [...chatMessages, message];
+        })(),
       }));
       setUnread(prev => ({
         ...prev,
@@ -173,9 +178,21 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, [messages]);
 
   const sendMessage = useCallback(async (chatId: string, content: string, replyToId?: string, attachmentIds?: string[]) => {
-    await apiSendMessage(chatId, { content, replyToId, attachmentIds });
-  }, []);
+    const message = await apiSendMessage(chatId, { content, replyToId, attachmentIds });
+    if (!message) return;
 
+    setMessages(prev => ({
+      ...prev,
+      [chatId]: (() => {
+        const chatMessages = prev[chatId] ?? [];
+        return chatMessages.some(m => m.id === message.id)
+          ? chatMessages
+          : [...chatMessages, message];
+      })(),
+    }));
+    setChats(prev => prev.map(c => c.id === chatId ? { ...c, lastMessage: message } : c));
+  }, []);
+ 
   const editMessage = useCallback(async (messageId: string, content: string) => {
     await apiEditMessage(messageId, content);
   }, []);
