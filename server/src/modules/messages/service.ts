@@ -251,17 +251,34 @@ export async function listChats(userId: string, prisma: PrismaClient) {
     },
   });
 
+  const personalOtherUserIds = [
+    ...new Set(
+      personalParticipants.flatMap((p) =>
+        p.chat.participants
+          .map((pp) => pp.userId)
+          .filter((participantId) => participantId !== userId)
+      )
+    ),
+  ];
+  const personalUsers = personalOtherUserIds.length > 0
+    ? await prisma.user.findMany({
+      where: { id: { in: personalOtherUserIds } },
+      select: { id: true, username: true },
+    })
+    : [];
+  const personalUsernames = new Map(personalUsers.map((u) => [u.id, u.username]));
+
   const result = [];
 
   for (const p of personalParticipants) {
     const chat = p.chat;
-    const otherParticipantIds = chat.participants.map((pp) => pp.userId).filter((id) => id !== userId);
+    const otherParticipant = chat.participants.find((pp) => pp.userId !== userId);
     result.push({
       id: chat.id,
       type: 'personal',
-      participantIds: otherParticipantIds,
+      name: otherParticipant ? personalUsernames.get(otherParticipant.userId) ?? 'Unknown user' : 'Unknown user',
       lastMessage: chat.messages[0] ?? null,
-      unreadCount: chat.unread[0]?.count ?? 0,
+      unread: chat.unread[0]?.count ?? 0,
     });
   }
 
@@ -273,9 +290,9 @@ export async function listChats(userId: string, prisma: PrismaClient) {
       id: chat.id,
       type: 'room',
       roomId: room.id,
-      roomName: room.name,
+      name: room.name,
       lastMessage: chat.messages[0] ?? null,
-      unreadCount: chat.unread[0]?.count ?? 0,
+      unread: chat.unread[0]?.count ?? 0,
     });
   }
 
