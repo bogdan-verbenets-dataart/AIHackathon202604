@@ -28,7 +28,15 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction):
   // For mutating requests, validate the header
   if (!SAFE_METHODS.has(req.method)) {
     const headerToken = req.headers[CSRF_HEADER] as string | undefined;
-    if (!headerToken || !crypto.timingSafeEqual(Buffer.from(headerToken), Buffer.from(token))) {
+    const tokensMatch = (() => {
+      try {
+        if (!headerToken || headerToken.length !== token.length) return false;
+        return crypto.timingSafeEqual(Buffer.from(headerToken), Buffer.from(token));
+      } catch {
+        return false;
+      }
+    })();
+    if (!tokensMatch) {
       res.status(403).json({ error: 'Invalid CSRF token' });
       return;
     }

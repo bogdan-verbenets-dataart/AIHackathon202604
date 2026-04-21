@@ -1,22 +1,22 @@
 import Redis from 'ioredis';
 
-const PRESENCE_TTL = 90;
+const PRESENCE_TTL_SECONDS = 90;
 
 function tabKey(userId: string, tabId: string) {
   return `presence:${userId}:tab:${tabId}`;
 }
 
 export async function setTabActive(userId: string, tabId: string, redisClient: Redis): Promise<void> {
-  await redisClient.set(tabKey(userId, tabId), 'active', 'EX', PRESENCE_TTL);
+  await redisClient.set(tabKey(userId, tabId), 'active', 'EX', PRESENCE_TTL_SECONDS);
 }
 
 export async function setTabAfk(userId: string, tabId: string, redisClient: Redis): Promise<void> {
   const key = tabKey(userId, tabId);
   const ttl = await redisClient.ttl(key);
   // ttl > 0: key exists with expiry — preserve it
-  // ttl === -1: key exists without expiry (shouldn't happen, but treat as PRESENCE_TTL)
-  // ttl === -2: key doesn't exist — create with PRESENCE_TTL
-  await redisClient.set(key, 'afk', 'EX', ttl > 0 ? ttl : PRESENCE_TTL);
+  // ttl === -1: key exists without expiry (shouldn't happen, but treat as PRESENCE_TTL_SECONDS)
+  // ttl === -2: key doesn't exist — create with PRESENCE_TTL_SECONDS
+  await redisClient.set(key, 'afk', 'EX', ttl > 0 ? ttl : PRESENCE_TTL_SECONDS);
 }
 
 export async function removeTab(userId: string, tabId: string, redisClient: Redis): Promise<void> {
