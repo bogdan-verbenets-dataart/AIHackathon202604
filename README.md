@@ -2,7 +2,7 @@
 
 A classic web-based real-time chat application.
 
-The requirements are described at [requirements.docx](requirements.docx).
+The requirements are described at [requirements.md](requirements.md).
 
 ## Running
 
