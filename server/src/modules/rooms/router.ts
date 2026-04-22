@@ -51,7 +51,7 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
 
 router.get('/:id', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const room = await getRoomById(req.params.id, prisma);
+    const room = await getRoomById(req.user!.id, req.params.id, prisma);
     res.json({ data: room });
   } catch (err: unknown) {
     const e = err as { status?: number; message: string };
