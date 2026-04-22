@@ -107,7 +107,7 @@ router.post('/:id/leave', authenticate, async (req: Request, res: Response): Pro
 
 router.get('/:id/members', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const members = await getRoomMembers(req.params.id, redis, prisma);
+    const members = await getRoomMembers(req.user!.id, req.params.id, redis, prisma);
     res.json({ data: members });
   } catch (err: unknown) {
     const e = err as { status?: number; message: string };

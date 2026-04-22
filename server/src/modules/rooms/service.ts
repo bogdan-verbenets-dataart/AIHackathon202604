@@ -137,9 +137,20 @@ export async function leaveRoom(userId: string, roomId: string, prisma: PrismaCl
   await prisma.roomMember.delete({ where: { id: member.id } });
 }
 
-export async function getRoomMembers(roomId: string, redisClient: Redis, prisma: PrismaClient) {
+export async function getRoomMembers(
+  userId: string,
+  roomId: string,
+  redisClient: Redis,
+  prisma: PrismaClient
+) {
   const room = await prisma.room.findUnique({ where: { id: roomId, deletedAt: null } });
   if (!room) throw Object.assign(new Error('Room not found'), { status: 404 });
+  if (!room.isPublic) {
+    const member = await prisma.roomMember.findUnique({
+      where: { roomId_userId: { roomId, userId } },
+    });
+    if (!member) throw Object.assign(new Error('Forbidden'), { status: 403 });
+  }
 
   const members = await prisma.roomMember.findMany({
     where: { roomId },
