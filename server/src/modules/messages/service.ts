@@ -3,14 +3,17 @@ import { z } from 'zod';
 import { Server as SocketServer } from 'socket.io';
 import { canSendMessage, canDeleteMessage, canEditMessage } from '../../lib/policy';
 
+const MAX_MESSAGE_BYTES = 3 * 1024;
+const isValidMessageSize = (content: string) => Buffer.byteLength(content, 'utf8') <= MAX_MESSAGE_BYTES;
+
 export const sendMessageSchema = z.object({
-  content: z.string().min(1).max(10000),
+  content: z.string().min(1).refine(isValidMessageSize, 'Message text must be 3 KB or less'),
   replyToId: z.string().uuid().optional(),
   attachmentIds: z.array(z.string().uuid()).max(10).optional(),
 });
 
 export const editMessageSchema = z.object({
-  content: z.string().min(1).max(10000),
+  content: z.string().min(1).refine(isValidMessageSize, 'Message text must be 3 KB or less'),
 });
 
 function formatMessage(msg: {
