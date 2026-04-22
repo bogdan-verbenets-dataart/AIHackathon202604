@@ -32,6 +32,8 @@ export const changePasswordSchema = z.object({
   newPassword: z.string().min(8),
 });
 
+const DELETED_USERNAME_USERID_SLICE = 20;
+
 export function hashToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
@@ -150,7 +152,7 @@ export async function changePassword(
 export async function deleteAccount(userId: string, prisma: PrismaClient) {
   const deletedAt = new Date();
   const deletedEmail = `deleted+${userId}-${deletedAt.getTime()}@deleted.local`;
-  const deletedUsername = `deleted_${userId.replace(/-/g, '').slice(0, 20)}_${deletedAt.getTime()}`;
+  const deletedUsername = `deleted_${userId.replace(/-/g, '').slice(0, DELETED_USERNAME_USERID_SLICE)}_${deletedAt.getTime()}`;
 
   const filesToDelete = await prisma.$transaction(async (tx) => {
     const ownedRoomIds = (await tx.room.findMany({
