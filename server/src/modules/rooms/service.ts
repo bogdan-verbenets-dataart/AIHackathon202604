@@ -1,7 +1,10 @@
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import Redis from 'ioredis';
+import fs from 'fs/promises';
+import path from 'path';
 import { getUserStatus } from '../../socket/presence';
+import { config } from '../../config';
 
 export const createRoomSchema = z.object({
   name: z.string().min(1).max(100),
@@ -97,7 +100,54 @@ export async function deleteRoom(userId: string, roomId: string, prisma: PrismaC
   const room = await prisma.room.findUnique({ where: { id: roomId, deletedAt: null } });
   if (!room) throw Object.assign(new Error('Room not found'), { status: 404 });
   if (room.ownerId !== userId) throw Object.assign(new Error('Forbidden'), { status: 403 });
-  await prisma.room.update({ where: { id: roomId }, data: { deletedAt: new Date() } });
+
+  const filesToDelete = await prisma.$transaction(async (tx) => {
+    const roomAttachments = await tx.attachment.findMany({
+      where: {
+        messages: {
+          some: {
+            message: {
+              chat: {
+                roomId,
+              },
+            },
+          },
+        },
+      },
+      select: { id: true },
+    });
+    const roomAttachmentIds = roomAttachments.map((attachment) => attachment.id);
+
+    await tx.room.delete({ where: { id: roomId } });
+
+    const orphanedAttachments = roomAttachmentIds.length > 0
+      ? await tx.attachment.findMany({
+          where: {
+            id: { in: roomAttachmentIds },
+            messages: { none: {} },
+          },
+          select: { id: true, storagePath: true },
+        })
+      : [];
+
+    if (orphanedAttachments.length > 0) {
+      await tx.attachment.deleteMany({
+        where: { id: { in: orphanedAttachments.map((attachment) => attachment.id) } },
+      });
+    }
+
+    return orphanedAttachments.map((attachment) => attachment.storagePath);
+  });
+
+  const uploadsDir = path.resolve(config.uploadsDir);
+  await Promise.all(filesToDelete.map(async (storagePath) => {
+    const normalizedStoragePath = path.normalize(storagePath);
+    if (path.isAbsolute(normalizedStoragePath)) return;
+    const filePath = path.resolve(uploadsDir, normalizedStoragePath);
+    const relativePath = path.relative(uploadsDir, filePath);
+    if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) return;
+    await fs.unlink(filePath).catch(() => {});
+  }));
 }
 
 export async function joinRoom(userId: string, roomId: string, prisma: PrismaClient) {
