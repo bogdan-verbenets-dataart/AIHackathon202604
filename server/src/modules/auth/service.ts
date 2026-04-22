@@ -221,9 +221,10 @@ export async function deleteAccount(userId: string, prisma: PrismaClient) {
   const uploadsDir = path.resolve(config.uploadsDir);
   await Promise.all(filesToDelete.map(async (storagePath) => {
     const normalizedStoragePath = path.normalize(storagePath);
-    if (path.isAbsolute(normalizedStoragePath) || normalizedStoragePath.split(path.sep).includes('..')) return;
+    if (path.isAbsolute(normalizedStoragePath)) return;
     const filePath = path.resolve(uploadsDir, normalizedStoragePath);
-    if (!filePath.startsWith(`${uploadsDir}${path.sep}`)) return;
+    const relativePath = path.relative(uploadsDir, filePath);
+    if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) return;
     await fs.unlink(filePath).catch(() => {});
   }));
 }
