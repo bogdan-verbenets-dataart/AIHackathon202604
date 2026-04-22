@@ -149,7 +149,7 @@ export async function changePassword(
 
 export async function deleteAccount(userId: string, prisma: PrismaClient) {
   const deletedAt = new Date();
-  const deletedEmail = `deleted+${userId}-${deletedAt.getTime()}@deleted.local`;
+  const deletedEmail = `deleted_${userId}-${deletedAt.getTime()}@deleted.local`;
   const deletedUsername = `deleted_${userId.replace(/-/g, '')}_${deletedAt.getTime()}`;
 
   const filesToDelete = await prisma.$transaction(async (tx) => {
@@ -220,7 +220,9 @@ export async function deleteAccount(userId: string, prisma: PrismaClient) {
 
   const uploadsDir = path.resolve(config.uploadsDir);
   await Promise.all(filesToDelete.map(async (storagePath) => {
-    const filePath = path.resolve(config.uploadsDir, storagePath);
+    const normalizedStoragePath = path.normalize(storagePath);
+    if (path.isAbsolute(normalizedStoragePath) || normalizedStoragePath.split(path.sep).includes('..')) return;
+    const filePath = path.resolve(uploadsDir, normalizedStoragePath);
     if (!filePath.startsWith(`${uploadsDir}${path.sep}`)) return;
     await fs.unlink(filePath).catch(() => {});
   }));
