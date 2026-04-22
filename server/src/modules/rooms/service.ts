@@ -35,9 +35,21 @@ export async function createRoom(
   return room;
 }
 
-export async function listPublicRooms(prisma: PrismaClient) {
+export async function listPublicRooms(prisma: PrismaClient, q?: string) {
+  const query = q?.trim();
   const rooms = await prisma.room.findMany({
-    where: { isPublic: true, deletedAt: null },
+    where: {
+      isPublic: true,
+      deletedAt: null,
+      ...(query
+        ? {
+            OR: [
+              { name: { contains: query, mode: 'insensitive' } },
+              { description: { contains: query, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+    },
     include: { _count: { select: { members: true } } },
     orderBy: { createdAt: 'desc' },
   });

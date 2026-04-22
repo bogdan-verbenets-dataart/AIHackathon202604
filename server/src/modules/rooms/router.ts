@@ -24,9 +24,10 @@ import {
 
 const router = Router();
 
-router.get('/', authenticate, async (_req: Request, res: Response): Promise<void> => {
+router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const rooms = await listPublicRooms(prisma);
+    const q = typeof req.query.q === 'string' ? req.query.q : undefined;
+    const rooms = await listPublicRooms(prisma, q);
     res.json({ data: rooms });
   } catch (err: unknown) {
     const e = err as { status?: number; message: string };
