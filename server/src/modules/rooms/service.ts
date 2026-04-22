@@ -245,6 +245,9 @@ export async function removeAdmin(
   const room = await prisma.room.findUnique({ where: { id: roomId, deletedAt: null } });
   if (!room) throw Object.assign(new Error('Room not found'), { status: 404 });
   if (room.ownerId !== ownerId) throw Object.assign(new Error('Forbidden'), { status: 403 });
+  if (targetUserId === room.ownerId) {
+    throw Object.assign(new Error('Owner admin privileges cannot be removed'), { status: 403 });
+  }
 
   await prisma.roomAdmin.delete({
     where: { roomId_userId: { roomId, userId: targetUserId } },
