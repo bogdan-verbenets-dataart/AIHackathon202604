@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { listSessions, deleteSession } from '../api/sessions';
 import type { Session } from '../types';
+import TopNav from '../components/TopNav';
 
 export default function SessionsPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -36,10 +36,9 @@ export default function SessionsPage() {
   );
 
   return (
-    <div style={{ maxWidth: 800, margin: '40px auto', padding: '0 16px' }}>
-      <div style={{ marginBottom: 16 }}>
-        <Link to="/" style={{ color: '#3498db', fontSize: 14 }}>← Back to Chat</Link>
-      </div>
+    <div>
+      <TopNav />
+      <div style={{ maxWidth: 800, margin: '40px auto', padding: '0 16px' }}>
       <div style={{ background: 'white', borderRadius: 8, padding: 32, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
         <h2 style={{ marginBottom: 24 }}>Active Sessions</h2>
         {error && <div className="error-msg">{error}</div>}
@@ -91,6 +90,7 @@ export default function SessionsPage() {
           </div>
         )}
       </div>
+    </div>
     </div>
   );
 }
