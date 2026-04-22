@@ -56,6 +56,40 @@ export async function canSendMessage(
   return false;
 }
 
+export async function canReadChat(
+  userId: string,
+  chatId: string,
+  prisma: PrismaClient
+): Promise<boolean> {
+  const chat = await prisma.chat.findUnique({
+    where: { id: chatId },
+    include: {
+      room: {
+        include: {
+          members: { where: { userId } },
+          bans: { where: { userId } },
+        },
+      },
+      participants: { where: { userId } },
+    },
+  });
+
+  if (!chat) return false;
+
+  if (chat.type === 'room' && chat.room) {
+    if (chat.room.deletedAt !== null) return false;
+    const isMember = chat.room.members.length > 0;
+    const isBanned = chat.room.bans.length > 0;
+    return isMember && !isBanned;
+  }
+
+  if (chat.type === 'personal') {
+    return chat.participants.length > 0;
+  }
+
+  return false;
+}
+
 export async function canDeleteMessage(
   userId: string,
   messageId: string,
@@ -134,7 +168,7 @@ export async function canAccessAttachment(
           chat: {
             include: {
               participants: { where: { userId } },
-              room: { include: { members: { where: { userId } } } },
+              room: { include: { members: { where: { userId } }, bans: { where: { userId } } } },
             },
           },
         },
@@ -145,7 +179,15 @@ export async function canAccessAttachment(
   for (const ma of msgAttachments) {
     const chat = ma.message.chat;
     if (chat.type === 'personal' && chat.participants.length > 0) return true;
-    if (chat.type === 'room' && chat.room && chat.room.members.length > 0) return true;
+    if (
+      chat.type === 'room' &&
+      chat.room &&
+      chat.room.deletedAt === null &&
+      chat.room.members.length > 0 &&
+      chat.room.bans.length === 0
+    ) {
+      return true;
+    }
   }
 
   return false;

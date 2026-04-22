@@ -1,16 +1,20 @@
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { Server as SocketServer } from 'socket.io';
-import { canSendMessage, canDeleteMessage, canEditMessage } from '../../lib/policy';
+import { canReadChat, canSendMessage, canDeleteMessage, canEditMessage } from '../../lib/policy';
+
+const MAX_MESSAGE_BYTES = 3 * 1024;
+const isValidMessageSize = (content: string) => Buffer.byteLength(content, 'utf8') <= MAX_MESSAGE_BYTES;
+const MESSAGE_SIZE_ERROR = `Message text must be ${MAX_MESSAGE_BYTES} bytes or less`;
 
 export const sendMessageSchema = z.object({
-  content: z.string().min(1).max(10000),
+  content: z.string().min(1).refine(isValidMessageSize, MESSAGE_SIZE_ERROR),
   replyToId: z.string().uuid().optional(),
   attachmentIds: z.array(z.string().uuid()).max(10).optional(),
 });
 
 export const editMessageSchema = z.object({
-  content: z.string().min(1).max(10000),
+  content: z.string().min(1).refine(isValidMessageSize, MESSAGE_SIZE_ERROR),
 });
 
 function formatMessage(msg: {
@@ -54,8 +58,8 @@ export async function getMessages(
   limit: number,
   prisma: PrismaClient
 ) {
-  const chat = await prisma.chat.findUnique({ where: { id: chatId } });
-  if (!chat) throw Object.assign(new Error('Chat not found'), { status: 404 });
+  const canRead = await canReadChat(userId, chatId, prisma);
+  if (!canRead) throw Object.assign(new Error('Forbidden'), { status: 403 });
 
   const clampedLimit = Math.min(Math.max(limit, 1), 100);
 
@@ -152,7 +156,7 @@ export async function sendMessage(
   });
 
   if (io && fullMessage) {
-    io.to(`chat:${chatId}`).emit('message:new', formatMessage(fullMessage));
+    io.to(`chat:${chatId}`).emit('message:new', { chatId, message: formatMessage(fullMessage) });
   }
 
   return fullMessage ? formatMessage(fullMessage) : null;
@@ -178,7 +182,7 @@ export async function editMessage(
   });
 
   if (io) {
-    io.to(`chat:${msg.chatId}`).emit('message:edit', formatMessage(msg));
+    io.to(`chat:${msg.chatId}`).emit('message:edited', { chatId: msg.chatId, message: formatMessage(msg) });
   }
 
   return formatMessage(msg);
@@ -199,7 +203,7 @@ export async function deleteMessage(
   });
 
   if (io) {
-    io.to(`chat:${msg.chatId}`).emit('message:delete', { id: msg.id, chatId: msg.chatId });
+    io.to(`chat:${msg.chatId}`).emit('message:deleted', { chatId: msg.chatId, messageId: msg.id });
   }
 }
 
