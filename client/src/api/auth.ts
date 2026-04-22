@@ -13,6 +13,9 @@ export const logout = () =>
 export const getMe = () =>
   api.get<{ data: User }>('/auth/me').then(r => r.data.data);
 
+export const deleteAccount = () =>
+  api.delete('/auth/me').then(r => r.data);
+
 export const forgotPassword = (email: string) =>
   api.post<{ data: { token: string } }>('/auth/forgot-password', { email }).then(r => r.data.data);
 

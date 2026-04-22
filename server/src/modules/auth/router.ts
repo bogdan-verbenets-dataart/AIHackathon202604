@@ -13,6 +13,7 @@ import {
   forgotPassword,
   resetPassword,
   changePassword,
+  deleteAccount,
 } from './service';
 
 const router = Router();
@@ -116,6 +117,17 @@ router.post('/change-password', authenticate, async (req: Request, res: Response
 
 router.get('/me', authenticate, async (req: Request, res: Response): Promise<void> => {
   res.json({ data: req.user });
+});
+
+router.delete('/me', authenticate, async (req: Request, res: Response): Promise<void> => {
+  try {
+    await deleteAccount(req.user!.id, prisma);
+    res.clearCookie('token');
+    res.json({ data: { ok: true } });
+  } catch (err: unknown) {
+    const e = err as { status?: number; message: string };
+    res.status(e.status ?? 500).json({ error: e.message });
+  }
 });
 
 export default router;
