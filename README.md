@@ -14,24 +14,6 @@ The application will be available at **http://localhost**
 
 The API is also directly accessible at http://localhost:4000
 
-## Development
-
-### Backend
-
-```bash
-cd server
-npm install
-npm run dev
-```
-
-### Frontend
-
-```bash
-cd client
-npm install
-npm run dev
-```
-
 ## Architecture
 
 - **Frontend**: React 18 + TypeScript SPA (Vite), served by nginx
