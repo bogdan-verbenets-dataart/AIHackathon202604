@@ -52,12 +52,20 @@ export async function listPublicRooms(prisma: PrismaClient) {
   }));
 }
 
-export async function getRoomById(roomId: string, prisma: PrismaClient) {
+export async function getRoomById(userId: string, roomId: string, prisma: PrismaClient) {
   const room = await prisma.room.findUnique({
     where: { id: roomId, deletedAt: null },
     include: { _count: { select: { members: true } } },
   });
   if (!room) throw Object.assign(new Error('Room not found'), { status: 404 });
+
+  if (!room.isPublic) {
+    const member = await prisma.roomMember.findUnique({
+      where: { roomId_userId: { roomId, userId } },
+    });
+    if (!member) throw Object.assign(new Error('Room not found'), { status: 404 });
+  }
+
   return { ...room, memberCount: room._count.members };
 }
 
