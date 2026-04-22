@@ -129,7 +129,11 @@ export async function getRoomMembers(
     const member = await prisma.roomMember.findUnique({
       where: { roomId_userId: { roomId, userId } },
     });
-    if (!member) throw Object.assign(new Error('Forbidden'), { status: 403 });
+    if (!member) {
+      throw Object.assign(new Error('You must be a member of this private room to view its members'), {
+        status: 403,
+      });
+    }
   }
 
   const members = await prisma.roomMember.findMany({
