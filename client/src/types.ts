@@ -21,6 +21,7 @@ export interface Room {
   isPublic: boolean;
   ownerId: string;
   createdAt: string;
+  memberCount?: number;
   _count?: { members: number };
 }
 
