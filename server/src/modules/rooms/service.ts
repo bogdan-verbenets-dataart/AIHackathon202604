@@ -224,6 +224,10 @@ export async function addAdmin(
   const room = await prisma.room.findUnique({ where: { id: roomId, deletedAt: null } });
   if (!room) throw Object.assign(new Error('Room not found'), { status: 404 });
   if (room.ownerId !== ownerId) throw Object.assign(new Error('Forbidden'), { status: 403 });
+  const targetMember = await prisma.roomMember.findUnique({
+    where: { roomId_userId: { roomId, userId: targetUserId } },
+  });
+  if (!targetMember) throw Object.assign(new Error('Target user is not a room member'), { status: 400 });
 
   await prisma.roomAdmin.upsert({
     where: { roomId_userId: { roomId, userId: targetUserId } },
