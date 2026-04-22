@@ -156,7 +156,7 @@ export async function sendMessage(
   });
 
   if (io && fullMessage) {
-    io.to(`chat:${chatId}`).emit('message:new', formatMessage(fullMessage));
+    io.to(`chat:${chatId}`).emit('message:new', { chatId, message: formatMessage(fullMessage) });
   }
 
   return fullMessage ? formatMessage(fullMessage) : null;
@@ -182,7 +182,7 @@ export async function editMessage(
   });
 
   if (io) {
-    io.to(`chat:${msg.chatId}`).emit('message:edit', formatMessage(msg));
+    io.to(`chat:${msg.chatId}`).emit('message:edited', { chatId: msg.chatId, message: formatMessage(msg) });
   }
 
   return formatMessage(msg);
@@ -203,7 +203,7 @@ export async function deleteMessage(
   });
 
   if (io) {
-    io.to(`chat:${msg.chatId}`).emit('message:delete', { id: msg.id, chatId: msg.chatId });
+    io.to(`chat:${msg.chatId}`).emit('message:deleted', { chatId: msg.chatId, messageId: msg.id });
   }
 }
 
