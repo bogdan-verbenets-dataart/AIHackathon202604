@@ -5,7 +5,7 @@ import { canReadChat, canSendMessage, canDeleteMessage, canEditMessage } from '.
 
 const MAX_MESSAGE_BYTES = 3 * 1024;
 const isValidMessageSize = (content: string) => Buffer.byteLength(content, 'utf8') <= MAX_MESSAGE_BYTES;
-const MESSAGE_SIZE_ERROR = 'Message text must be 3072 bytes or less';
+const MESSAGE_SIZE_ERROR = `Message text must be ${MAX_MESSAGE_BYTES} bytes or less`;
 
 export const sendMessageSchema = z.object({
   content: z.string().min(1).refine(isValidMessageSize, MESSAGE_SIZE_ERROR),
