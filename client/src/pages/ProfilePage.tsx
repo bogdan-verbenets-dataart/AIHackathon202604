@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../store/AuthContext';
 import { changePassword } from '../api/auth';
+import TopNav from '../components/TopNav';
 import '../styles/chat.css';
 
 export default function ProfilePage() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -38,10 +38,9 @@ export default function ProfilePage() {
   };
 
   return (
-    <div style={{ maxWidth: 500, margin: '40px auto', padding: '0 16px' }}>
-      <div style={{ marginBottom: 16 }}>
-        <Link to="/" style={{ color: '#3498db', fontSize: 14 }}>← Back to Chat</Link>
-      </div>
+    <div>
+      <TopNav />
+      <div style={{ maxWidth: 500, margin: '40px auto', padding: '0 16px' }}>
       <div style={{ background: 'white', borderRadius: 8, padding: 32, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
         <h2 style={{ marginBottom: 24 }}>Profile</h2>
         <div className="form-group">
@@ -101,6 +100,7 @@ export default function ProfilePage() {
           <Link to="/sessions" style={{ color: '#3498db' }}>Manage Sessions</Link>
         </div>
       </div>
+    </div>
     </div>
   );
 }
