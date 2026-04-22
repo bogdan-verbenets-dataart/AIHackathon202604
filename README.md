@@ -22,8 +22,9 @@ The API is also directly accessible at http://localhost:4000
 - **Cache / Pub-Sub**: Redis 7
 - **File storage**: Docker named volume (`uploads`)
 
-## Features (Phases 1–3)
+## Features
 
+An attempt was made to implement all features except advanced requirements (chapter 6 in the original documentation).
 - Registration, login, multi-session management, password reset/change
 - Public and private rooms with owner/admin roles, ban list, invites
 - Real-time messaging with reply threading, edit/delete
