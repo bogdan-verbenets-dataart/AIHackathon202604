@@ -1,6 +1,8 @@
 import crypto from 'crypto';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import fs from 'fs/promises';
+import path from 'path';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { config } from '../../config';
@@ -59,7 +61,7 @@ export async function loginUser(
   ipAddress: string | undefined,
   prisma: PrismaClient
 ) {
-  const user = await prisma.user.findUnique({ where: { email: data.email } });
+  const user = await prisma.user.findFirst({ where: { email: data.email, deletedAt: null } });
   if (!user || !await bcrypt.compare(data.password, user.passwordHash)) {
     throw Object.assign(new Error('Invalid credentials'), { status: 401 });
   }
@@ -143,4 +145,86 @@ export async function changePassword(
 
   const passwordHash = await bcrypt.hash(data.newPassword, 12);
   await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+}
+
+export async function deleteAccount(userId: string, prisma: PrismaClient) {
+  const deletedAt = new Date();
+  const deletedEmail = `deleted_${userId}-${deletedAt.getTime()}@deleted.local`;
+  const deletedUsername = `deleted_${userId.replace(/-/g, '')}_${deletedAt.getTime()}`;
+
+  const filesToDelete = await prisma.$transaction(async (tx) => {
+    const ownedRoomIds = (await tx.room.findMany({
+      where: { ownerId: userId },
+      select: { id: true },
+    })).map((room) => room.id);
+
+    let ownedRoomAttachmentIds: string[] = [];
+    if (ownedRoomIds.length > 0) {
+      const ownedRoomAttachments = await tx.attachment.findMany({
+        where: {
+          messages: {
+            some: {
+              message: {
+                chat: {
+                  roomId: { in: ownedRoomIds },
+                },
+              },
+            },
+          },
+        },
+        select: { id: true },
+      });
+      ownedRoomAttachmentIds = ownedRoomAttachments.map((attachment) => attachment.id);
+    }
+
+    await tx.roomMember.deleteMany({
+      where: {
+        userId,
+        room: { ownerId: { not: userId } },
+      },
+    });
+
+    if (ownedRoomIds.length > 0) {
+      await tx.room.deleteMany({ where: { id: { in: ownedRoomIds } } });
+    }
+
+    const orphanedAttachments = ownedRoomAttachmentIds.length > 0
+      ? await tx.attachment.findMany({
+        where: {
+          id: { in: ownedRoomAttachmentIds },
+          messages: { none: {} },
+        },
+        select: { id: true, storagePath: true },
+      })
+      : [];
+
+    if (orphanedAttachments.length > 0) {
+      await tx.attachment.deleteMany({
+        where: { id: { in: orphanedAttachments.map((attachment) => attachment.id) } },
+      });
+    }
+
+    await tx.userSession.deleteMany({ where: { userId } });
+    await tx.passwordResetToken.deleteMany({ where: { userId } });
+    await tx.user.update({
+      where: { id: userId },
+      data: {
+        deletedAt,
+        email: deletedEmail,
+        username: deletedUsername,
+      },
+    });
+
+    return orphanedAttachments.map((attachment) => attachment.storagePath);
+  });
+
+  const uploadsDir = path.resolve(config.uploadsDir);
+  await Promise.all(filesToDelete.map(async (storagePath) => {
+    const normalizedStoragePath = path.normalize(storagePath);
+    if (path.isAbsolute(normalizedStoragePath)) return;
+    const filePath = path.resolve(uploadsDir, normalizedStoragePath);
+    const relativePath = path.relative(uploadsDir, filePath);
+    if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) return;
+    await fs.unlink(filePath).catch(() => {});
+  }));
 }

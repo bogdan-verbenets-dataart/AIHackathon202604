@@ -62,7 +62,7 @@ export default function JoinRoomModal({ onClose, onJoined }: Props) {
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600, fontSize: 14 }}># {room.name}</div>
                   {room.description && <div style={{ fontSize: 13, color: '#666', marginTop: 2 }}>{room.description}</div>}
-                  <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>{room._count?.members ?? 0} members</div>
+                  <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>{room.memberCount ?? room._count?.members ?? 0} members</div>
                 </div>
                 <button
                   onClick={() => handleJoin(room.id)}
