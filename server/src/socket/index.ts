@@ -92,6 +92,7 @@ export function setupSocket(server: HttpServer, prisma: PrismaClient, redisClien
 
   io.on('connection', (socket) => {
     const userId = socket.data.userId as string;
+    socket.join(`user:${userId}`);
 
     socket.on('join_chat', (payload: string | { chatId: string }) => {
       const chatId = typeof payload === 'string' ? payload : payload?.chatId;

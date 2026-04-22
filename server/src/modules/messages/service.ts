@@ -95,7 +95,7 @@ export async function sendMessage(
   const allowed = await canSendMessage(userId, chatId, prisma);
   if (!allowed) throw Object.assign(new Error('Cannot send message to this chat'), { status: 403 });
 
-  const message = await prisma.$transaction(async (tx) => {
+  const messageResult = await prisma.$transaction(async (tx) => {
     const msg = await tx.message.create({
       data: {
         chatId,
@@ -135,20 +135,22 @@ export async function sendMessage(
       otherUserIds.push(...chat.room.members.map((m) => m.userId).filter((id) => id !== userId));
     }
 
-    for (const uid of otherUserIds) {
-      await tx.unreadState.upsert({
+    const unreadUpdates: Array<{ userId: string; count: number }> = [];
+    for (const uid of new Set(otherUserIds)) {
+      const unreadState = await tx.unreadState.upsert({
         where: { userId_chatId: { userId: uid, chatId } },
         create: { userId: uid, chatId, count: 1 },
         update: { count: { increment: 1 } },
       });
+      unreadUpdates.push({ userId: uid, count: unreadState.count });
     }
 
-    return msg;
+    return { msg, unreadUpdates };
   });
 
   // Refetch with attachments
   const fullMessage = await prisma.message.findUnique({
-    where: { id: message.id },
+    where: { id: messageResult.msg.id },
     include: {
       author: { select: { id: true, username: true, email: true } },
       attachments: { include: { attachment: true } },
@@ -156,7 +158,12 @@ export async function sendMessage(
   });
 
   if (io && fullMessage) {
-    io.to(`chat:${chatId}`).emit('message:new', { chatId, message: formatMessage(fullMessage) });
+    const formattedMessage = formatMessage(fullMessage);
+    io.to(`chat:${chatId}`).emit('message:new', { chatId, message: formattedMessage });
+    for (const unreadUpdate of messageResult.unreadUpdates) {
+      io.to(`user:${unreadUpdate.userId}`).emit('unread:update', { chatId, count: unreadUpdate.count });
+    }
+    return formattedMessage;
   }
 
   return fullMessage ? formatMessage(fullMessage) : null;
