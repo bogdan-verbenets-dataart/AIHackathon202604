@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { Server as SocketServer } from 'socket.io';
-import { canSendMessage, canDeleteMessage, canEditMessage } from '../../lib/policy';
+import { canReadChat, canSendMessage, canDeleteMessage, canEditMessage } from '../../lib/policy';
 
 const MAX_MESSAGE_BYTES = 3 * 1024;
 const isValidMessageSize = (content: string) => Buffer.byteLength(content, 'utf8') <= MAX_MESSAGE_BYTES;
@@ -57,8 +57,8 @@ export async function getMessages(
   limit: number,
   prisma: PrismaClient
 ) {
-  const chat = await prisma.chat.findUnique({ where: { id: chatId } });
-  if (!chat) throw Object.assign(new Error('Chat not found'), { status: 404 });
+  const canRead = await canReadChat(userId, chatId, prisma);
+  if (!canRead) throw Object.assign(new Error('Forbidden'), { status: 403 });
 
   const clampedLimit = Math.min(Math.max(limit, 1), 100);
 
