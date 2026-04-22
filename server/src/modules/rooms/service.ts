@@ -242,7 +242,7 @@ export async function removeAdmin(
   if (!room) throw Object.assign(new Error('Room not found'), { status: 404 });
   if (room.ownerId !== ownerId) throw Object.assign(new Error('Forbidden'), { status: 403 });
   if (targetUserId === room.ownerId) {
-    throw Object.assign(new Error('Owner admin privileges cannot be removed'), { status: 403 });
+    throw Object.assign(new Error('Cannot remove admin privileges from the room owner'), { status: 403 });
   }
 
   await prisma.roomAdmin.delete({
